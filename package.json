@@ -1,0 +1,13 @@
+{
+  "name": "god-code",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n API,WEB -c green,blue \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "docker:init-env": "node scripts/docker/init-env.js",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
