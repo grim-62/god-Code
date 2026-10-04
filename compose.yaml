@@ -93,7 +93,8 @@ services:
   judge0-server:
     image: god-code-judge0:1.13.1
     build:
-      context: ./judge0
+      context: .
+      dockerfile: docker/judge0/Dockerfile
       target: production
     user: root
     entrypoint: ["/bin/bash", "-lc"]
@@ -126,7 +127,8 @@ services:
   judge0-workers:
     image: god-code-judge0:1.13.1
     build:
-      context: ./judge0
+      context: .
+      dockerfile: docker/judge0/Dockerfile
       target: production
     user: root
     entrypoint: ["/bin/bash", "-lc"]

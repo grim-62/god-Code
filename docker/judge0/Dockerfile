@@ -1,0 +1,59 @@
+FROM judge0/compilers:1.4.0 AS production
+
+ENV JUDGE0_HOMEPAGE="https://judge0.com"
+LABEL homepage=$JUDGE0_HOMEPAGE
+
+ENV JUDGE0_SOURCE_CODE="https://github.com/judge0/judge0"
+LABEL source_code=$JUDGE0_SOURCE_CODE
+
+ENV JUDGE0_MAINTAINER="Herman Zvonimir Došilović <hermanz.dosilovic@gmail.com>"
+LABEL maintainer=$JUDGE0_MAINTAINER
+
+ENV PATH="/usr/local/ruby-2.7.0/bin:/opt/.gem/bin:$PATH"
+ENV GEM_HOME="/opt/.gem/"
+
+RUN set -eux; \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+      -exec sed -i \
+        -e 's|https\?://deb.debian.org/debian|http://archive.debian.org/debian|g' \
+        -e 's|https\?://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' \
+        {} +; \
+    printf 'Acquire::Check-Valid-Until "false";\n' \
+      > /etc/apt/apt.conf.d/99archive-no-check-valid-until; \
+    apt-get -o Acquire::Check-Valid-Until=false update; \
+    apt-get install -y --no-install-recommends \
+      cron \
+      libpq-dev \
+      sudo; \
+    rm -rf /var/lib/apt/lists/*; \
+    echo "gem: --no-document" > /root/.gemrc; \
+    gem install bundler:2.1.4; \
+    npm install -g --unsafe-perm aglio@2.3.0
+
+EXPOSE 2358
+
+WORKDIR /api
+
+COPY judge0/Gemfile* ./
+RUN RAILS_ENV=production bundle
+
+COPY judge0/cron /etc/cron.d
+RUN cat /etc/cron.d/* | crontab -
+
+COPY judge0/ ./
+
+ENTRYPOINT ["/api/docker-entrypoint.sh"]
+CMD ["/api/scripts/server"]
+
+RUN useradd -u 1000 -m -r judge0 && \
+    echo "judge0 ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers && \
+    chown judge0: /api/tmp/
+
+USER judge0
+
+ENV JUDGE0_VERSION="1.13.1"
+LABEL version=$JUDGE0_VERSION
+
+FROM production AS development
+
+CMD ["sleep", "infinity"]

@@ -277,6 +277,42 @@ docker compose down
 
 ## Troubleshooting
 
+- **Judge0 build reports Debian Buster repository `404 Not Found` / “does not have a Release file”:** the pinned Judge0 v1.13.1 compiler image uses Debian Buster, which has reached end of life and has been moved to Debian's archive. Pull the deployment fix and use the root build context/Dockerfile configured in `compose.yaml`; it redirects the retired Debian sources to `archive.debian.org` and disables only the archive metadata expiry check:
+
+  ```sh
+  cd ~/god-code
+  df -h /
+  docker system df
+  git pull --ff-only
+  git submodule update --init --recursive
+  docker compose config --quiet
+  docker compose build judge0-server
+  docker compose up -d
+  ```
+
+  If the earlier disk-full error has not been resolved, stop here and follow the disk-space recovery steps below before rebuilding. The separate `judge0-workers` service uses the same image. `client build ... CANCELED` is a consequence of Compose stopping other builds after the Judge0 build failed, not an independent npm error. Debian Buster is unsupported; this archive workaround only restores access to its frozen packages and does not make the old base image security-maintained. Plan an upgrade to a supported Judge0/compiler base before treating this legacy image as a long-term public production runtime.
+- **Docker build says `no space left on device` (including while running `apt-get`):** this is host/container-storage exhaustion, not an APT package error. Do not rerun the build until you have free disk space. Check usage:
+
+  ```sh
+  df -h /
+  df -h /var/lib/docker
+  df -i /
+  docker system df
+  lsblk -f
+  ```
+
+  Judge0's compiler image and intermediate build layers need several gigabytes. The recommended root EBS volume is at least 100 GiB. If the root volume is smaller or nearly full, increase its size in **EC2 → Elastic Block Store → Volumes → Modify volume**, wait for the modification to complete, then grow the root partition/filesystem using the device and filesystem type shown by `lsblk -f`. On a common Ubuntu Nitro instance with an ext4 root partition at `/dev/nvme0n1p1`, the commands are:
+
+  ```sh
+  sudo apt install -y cloud-guest-utils
+  sudo growpart /dev/nvme0n1 1
+  sudo resize2fs /dev/nvme0n1p1
+  df -h /
+  ```
+
+  If `lsblk -f` shows XFS instead of ext4, grow the partition as appropriate and grow the mounted filesystem with `sudo xfs_growfs -d /` (do not run `resize2fs` on XFS). Device names and partition numbers vary; inspect them and substitute the actual root device instead of copying these example commands blindly.
+
+  To reclaim disposable package logs/cache, run `sudo apt clean` and `sudo journalctl --vacuum-time=7d`. `docker builder prune` removes Docker build cache and can free space, but makes later builds slower. Do not run `docker system prune --volumes`, `docker volume prune`, or `docker compose down -v` to fix a build-space issue; they can delete persistent database data. Once `df -h /` shows adequate free space, retry `docker compose up --build -d` from `~/god-code`.
 - **Caddy cannot get a certificate:** verify the A record resolves to the EC2 Elastic IP and security group/firewall ports 80 and 443 are open.
 - **Compose says a secret is missing:** check that you are running commands from the project root and that the root `.env` exists.
 - **API container exits with an invalid JWT secret:** regenerate or set a unique non-placeholder `JWT_SECRET` of at least 32 characters.
