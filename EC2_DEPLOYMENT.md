@@ -73,7 +73,7 @@ Check the host before building or starting the stack:
 stat -fc %T /sys/fs/cgroup/
 ```
 
-Judge0 v1.13.1's Isolate sandbox requires cgroup v1; `tmpfs` indicates the traditional cgroup v1 mount layout. If the result is `cgroup2fs`, do not proceed expecting code execution to work. On Ubuntu 22.04, you can try switching to the legacy hierarchy:
+Judge0 v1.13.1's Isolate sandbox requires cgroup v1; `tmpfs` indicates the traditional cgroup v1 mount layout. If the result is `cgroup2fs`, do not proceed expecting code execution to work. Ubuntu 26.04 is not the tested baseline for this pinned Judge0 image; if you launched 26.04, verify this requirement first. If cgroup v1 is unavailable, use a compatible supported Linux host rather than continuing with a deployment where code execution will fail. On Ubuntu 22.04, you can try switching to the legacy hierarchy:
 
 1. Edit `/etc/default/grub` and append `systemd.unified_cgroup_hierarchy=0` inside the existing `GRUB_CMDLINE_LINUX` quoted value. Preserve any existing kernel arguments.
 2. Apply the change and reboot:
@@ -85,22 +85,30 @@ Judge0 v1.13.1's Isolate sandbox requires cgroup v1; `tmpfs` indicates the tradi
 
 3. Reconnect and check `stat -fc %T /sys/fs/cgroup/` again. Continue only if it reports `tmpfs` and Docker is running. If the instance/kernel cannot provide cgroup v1, select a compatible supported Linux host; do not expose a broken Judge0 deployment.
 
-## 3. Get the application source
+## 3. Get the application source from GitHub
 
-Clone your Git repository (replace the placeholder with its clone URL). For a private repository, use a deploy key or another approved Git credential method; do not put access tokens in the clone URL or shell history.
+This project is hosted at [github.com/grim-62/god-Code](https://github.com/grim-62/god-Code) on the `master` branch. Clone the full project **and its pinned Judge0 submodule**:
 
 ```sh
 cd ~
-git clone YOUR_REPOSITORY_CLONE_URL god-code
+git clone --recurse-submodules --branch master \
+  https://github.com/grim-62/god-Code.git god-code
 cd ~/god-code
 ```
 
-Check the source and available disk space:
+The GitHub repository is public, so this HTTPS clone does not need a password or personal access token. The `judge0/` folder is a pinned upstream Git submodule; `--recurse-submodules` is required because Compose builds the Judge0 image from its source. Confirm both the app and Judge0 source were downloaded:
 
 ```sh
 test -f compose.yaml && test -f .env.example && test -f judge0/Dockerfile
+git submodule status
 df -h /
 free -h
+```
+
+If the Judge0 folder is empty or `git submodule status` starts with `-`, initialize it before continuing:
+
+```sh
+git submodule update --init --recursive
 ```
 
 Do not upload or commit your workstation's `.env`. Generate a fresh environment file on this host:
@@ -233,6 +241,7 @@ Deploy an update from the repository:
 ```sh
 cd ~/god-code
 git pull --ff-only
+git submodule update --init --recursive
 docker compose up --build -d
 docker compose ps
 curl -fsS https://app.example.com/api/health
