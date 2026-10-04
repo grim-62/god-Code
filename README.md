@@ -56,9 +56,9 @@ npm run docker:up
 
 The initializer creates `.env` from `.env.example` and generates four unique 256-bit secrets. It also sets `JUDGE0_API_KEY` to the Judge0 authentication token. It will not overwrite an existing `.env`. Keep this file private and do not commit it. Compose publishes only the client port (`HTTP_PORT`, default `80`); Nginx serves the UI and proxies `/api` to the API. Judge0 and the databases stay on the private Compose network.
 
-Before a public deployment, replace the development `CORS_ORIGIN` with the exact public UI origin (for example, `https://app.example.com`). Keep the root `.env` out of source control and use unique production secrets. The API trusts one proxy hop by default; configure the hop count to match the actual reverse-proxy chain. The bundled Nginx configuration serves HTTP only; terminate HTTPS at a trusted reverse proxy or load balancer in front of the published client port, and do not expose the application publicly over plain HTTP.
+Before a public deployment, set `CORS_ORIGIN` to the exact public UI origin (`https://godecode.prashantxd.in` for this deployment). Keep the root `.env` out of source control and use unique production secrets. The API trusts one proxy hop by default; configure the hop count to match the actual reverse-proxy chain. The bundled Nginx configuration serves HTTP only; terminate HTTPS at a trusted reverse proxy or load balancer in front of the published client port, and do not expose the application publicly over plain HTTP.
 
-For a complete EC2 deployment using Caddy for HTTPS, see [EC2_DEPLOYMENT.md](./EC2_DEPLOYMENT.md). It configures the container listener on localhost and the correct two trusted proxy hops (Caddy and Nginx).
+For a complete EC2 deployment using Caddy for HTTPS at `godeCode.prashantxd.in`, see [EC2_DEPLOYMENT.md](./EC2_DEPLOYMENT.md). It configures the container listener on localhost and the correct two trusted proxy hops (Caddy and Nginx).
 
 The complete Judge0 image is several gigabytes, so the first build and startup can take a while. Check the deployment with:
 

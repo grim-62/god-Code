@@ -20,7 +20,7 @@ Recommended starting point for a low-traffic deployment:
 - Ubuntu Server 22.04 LTS, x86_64. If you already launched a different Ubuntu release, do not assume it supports the cgroup v1 mode Judge0 requires; verify it in Step 2.
 - At least 4 vCPU, 16 GiB RAM, and 100 GiB gp3 EBS storage. Smaller instances may work for a brief test but can run out of memory, CPU, or disk while building Judge0 or executing submissions. Increase capacity for concurrent users.
 - An Elastic IP if you want the address to remain stable across instance stops.
-- A DNS A record such as `app.example.com` pointing to the Elastic IP. Wait until DNS resolves before starting Caddy.
+- A DNS A record for `godeCode.prashantxd.in` pointing to the Elastic IP. DNS host names are case-insensitive. Wait until DNS resolves before starting Caddy.
 
 In the EC2 security group, allow only:
 
@@ -31,6 +31,12 @@ In the EC2 security group, allow only:
 | HTTPS | 443 | `0.0.0.0/0` and `::/0` |
 
 Do **not** create inbound rules for 8080, 5000, 2358, 27017, 6379, or 5432. Restrict SSH to your IP. Apply the same restrictions in any host firewall.
+
+In your domain DNS provider, create an **A** record with host/name `godeCode` and value/content set to the EC2 Elastic IP. Do not create an AAAA record unless IPv6 is configured on the instance and allowed by its security group. Verify DNS has propagated before configuring HTTPS:
+
+```sh
+getent ahosts godecode.prashantxd.in
+```
 
 Connect using the login name shown for the AMI:
 
@@ -133,12 +139,12 @@ Edit the root environment file:
 nano .env
 ```
 
-Set these values, replacing the domain with the exact hostname in your DNS A record:
+Set these values:
 
 ```dotenv
 HTTP_BIND_ADDRESS=127.0.0.1
 HTTP_PORT=8080
-CORS_ORIGIN=https://app.example.com
+CORS_ORIGIN=https://godecode.prashantxd.in
 TRUST_PROXY_HOPS=2
 ```
 
@@ -168,14 +174,12 @@ Replace the Caddy configuration with your hostname:
 
 ```sh
 sudo tee /etc/caddy/Caddyfile > /dev/null <<'EOF'
-app.example.com {
+godecode.prashantxd.in {
     encode zstd gzip
     reverse_proxy 127.0.0.1:8080
 }
 EOF
 ```
-
-Replace `app.example.com` in the file above with your real domain. Validate and reload Caddy:
 
 ```sh
 sudo caddy validate --config /etc/caddy/Caddyfile
@@ -212,10 +216,10 @@ free -h
 `judge0-config` is a one-shot service; it should finish successfully. The API, client, databases, and Judge0 server should remain running. Check the public HTTPS health endpoint:
 
 ```sh
-curl -fsS https://app.example.com/api/health
+curl -fsS https://godecode.prashantxd.in/api/health
 ```
 
-It should return JSON with `"status":"ok"`. Then open `https://app.example.com`, register an account, and verify that login and the problem pages work.
+It should return JSON with `"status":"ok"`. Then open `https://godecode.prashantxd.in`, register an account, and verify that login and the problem pages work.
 
 To enable admin-only pages for an account you created, set that account's email in this command:
 
@@ -244,7 +248,7 @@ git pull --ff-only
 git submodule update --init --recursive
 docker compose up --build -d
 docker compose ps
-curl -fsS https://app.example.com/api/health
+curl -fsS https://godecode.prashantxd.in/api/health
 ```
 
 Create regular, encrypted EBS snapshots and retain them outside the instance. The simplest consistent snapshot for this single-host setup briefly stops the services:
@@ -258,7 +262,7 @@ Then, in the AWS EC2 console, create a snapshot of the instance's root EBS volum
 ```sh
 docker compose up -d
 docker compose ps
-curl -fsS https://app.example.com/api/health
+curl -fsS https://godecode.prashantxd.in/api/health
 ```
 
 Snapshots briefly interrupt service and are not a substitute for testing recovery. Restrict snapshot access and retention, and test restoring one to a new EBS volume/instance. For point-in-time database backups with no downtime, configure and test database-native backups to protected off-instance storage. Monitor EBS free space; Judge0 images and build layers can consume substantial disk. Keep the OS and Docker images patched, and rebuild/redeploy deliberately.
